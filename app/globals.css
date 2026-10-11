@@ -1,26 +1,264 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* "static" so the variables are always emitted: the CSS below reads them with var(). */
+@theme static {
+  /* Deep navy surfaces, lightest = most raised. Never pure black. */
+  --color-ink-950: #060a15;
+  --color-ink-900: #0a1020;
+  --color-ink-850: #0d1426;
+  --color-ink-800: #111a2e;
+  --color-ink-700: #17223a;
+  --color-ink-600: #223050;
+}
+
+:root {
+  color-scheme: dark;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html {
+  background: var(--color-ink-900);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: #e2e8f0;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ambient gradient mesh. Static and cheap: one fixed layer, no animation. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(58rem 38rem at 8% -8%, rgb(124 106 232 / 0.2), transparent 62%),
+    radial-gradient(46rem 32rem at 96% 2%, rgb(34 211 238 / 0.09), transparent 62%),
+    radial-gradient(60rem 40rem at 62% 112%, rgb(63 134 242 / 0.13), transparent 62%);
+}
+
+::selection {
+  background: rgb(139 124 240 / 0.4);
+}
+
+/* ---------- surfaces ---------- */
+
+.surface {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.045), rgb(255 255 255 / 0.015)),
+    var(--color-ink-800);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 1rem;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.04) inset,
+    0 14px 34px -18px rgb(0 0 0 / 0.75);
+}
+
+.surface-hover {
+  transition:
+    transform 0.25s var(--ease-out),
+    box-shadow 0.25s var(--ease-out),
+    border-color 0.25s;
+}
+.surface-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgb(255 255 255 / 0.16);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.05) inset,
+    0 22px 44px -18px rgb(0 0 0 / 0.85);
+}
+
+/* Glass is reserved for floating chrome: top bar, sidebar, dialogs, popovers. */
+.glass {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.035));
+  border: 1px solid rgb(255 255 255 / 0.1);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.07) inset,
+    0 16px 44px -16px rgb(0 0 0 / 0.7);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass {
+    background: rgb(17 26 46 / 0.96);
+  }
+}
+
+/* ---------- 3D tilt (pointer devices only; set by components/Tilt.tsx) ---------- */
+
+.tilt {
+  position: relative;
+  transform-style: preserve-3d;
+  transition:
+    transform 0.3s var(--ease-out),
+    box-shadow 0.3s var(--ease-out),
+    border-color 0.25s;
+}
+.tilt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 0%), rgb(255 255 255 / 0.09), transparent 62%);
+  transition: opacity 0.25s;
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .tilt:hover {
+    transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px);
+    border-color: rgb(255 255 255 / 0.18);
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 0.06) inset,
+      0 26px 50px -20px rgb(0 0 0 / 0.9);
+  }
+  .tilt:hover::after {
+    opacity: 1;
+  }
+}
+
+/* ---------- hero depth: three stacked "post" tiles in perspective (decorative) ---------- */
+
+.stack-scene {
+  perspective: 1100px;
+}
+.stack-card {
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background: linear-gradient(160deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.03)), var(--color-ink-800);
+  box-shadow: 0 24px 50px -20px rgb(0 0 0 / 0.85);
+  transform-origin: 50% 100%;
+}
+.stack-card:nth-child(1) {
+  transform: translate3d(0, 0, 0) rotateY(-16deg) rotateX(6deg);
+}
+.stack-card:nth-child(2) {
+  transform: translate3d(26px, -22px, 30px) rotateY(-16deg) rotateX(6deg);
+}
+.stack-card:nth-child(3) {
+  transform: translate3d(52px, -44px, 60px) rotateY(-16deg) rotateX(6deg);
+}
+
+/* ---------- loading: skeleton shimmer ---------- */
+
+.skeleton {
+  border-radius: 0.5rem;
+  background: linear-gradient(90deg, rgb(255 255 255 / 0.05) 25%, rgb(255 255 255 / 0.11) 50%, rgb(255 255 255 / 0.05) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* ---------- keyframes ---------- */
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+@keyframes drawer-in {
+  from {
+    transform: translateX(-16px);
+    opacity: 0;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes float-y {
+  50% {
+    transform: translateY(-8px);
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+.anim-page {
+  animation: page-in 0.4s var(--ease-out) both;
+}
+.anim-pop {
+  animation: pop-in 0.18s var(--ease-out) both;
+}
+.anim-toast {
+  animation: toast-in 0.25s var(--ease-out) both;
+}
+.anim-drawer {
+  animation: drawer-in 0.22s var(--ease-out) both;
+}
+.anim-fade {
+  animation: fade-in 0.2s ease-out both;
+}
+.anim-float {
+  animation: float-y 7s ease-in-out infinite;
+}
+.anim-spin {
+  animation: spin 0.8s linear infinite;
+}
+.anim-bar {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: bar-grow 0.5s var(--ease-out) both;
+}
+
+/* Staggered entrance for lists/grids: set --i on each child. */
+.stagger > * {
+  animation: page-in 0.45s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+/* ---------- reduced motion: keep layout and state changes, drop movement ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .surface-hover:hover,
+  .tilt:hover {
+    transform: none !important;
+  }
+  .skeleton {
+    animation: none;
+  }
 }
