@@ -43,8 +43,18 @@ export default function CreateView() {
         description="Add what you worked on, check your profile, and get three editable drafts in one click."
       />
       <DemoNote>
-        <strong className="font-semibold">Demo Mode:</strong> drafts are built from local templates in your browser. No AI
-        model, no live trend data, and no LinkedIn connection. Nothing is posted for you.
+        <strong className="font-semibold">Demo Mode:</strong> &ldquo;Generate Today&rsquo;s 3 Posts&rdquo; builds drafts
+        from local templates in your browser, with no AI model and no live trend data.
+        {app.ai?.configured ? (
+          <>
+            {" "}
+            <strong className="font-semibold">Generate with AI</strong> sends your profile and notes through this app&rsquo;s
+            server to {app.ai.model ?? "the AI provider"}; AI drafts are labelled. Trending topics are still sample data.
+          </>
+        ) : (
+          <> Live AI isn&rsquo;t configured on this server.</>
+        )}{" "}
+        There is no LinkedIn connection, and nothing is posted for you.
       </DemoNote>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)] xl:gap-x-8">
@@ -53,6 +63,8 @@ export default function CreateView() {
             notes={app.notes}
             onChange={app.setNotes}
             onGenerate={app.generate}
+            onGenerateLive={app.ai?.configured ? app.generateLive : undefined}
+            aiError={app.aiError}
             error={app.error}
             loading={app.generating}
           />
@@ -97,6 +109,7 @@ export default function CreateView() {
                     post={posts[type]}
                     onSave={app.savePost}
                     onRegenerate={() => app.regenerate(type)}
+                    regenerating={app.regeneratingType === type}
                     onSaveDraft={() => app.saveDraft(type)}
                     draftSaved={app.isSaved(posts[type])}
                     onPublish={() => app.publishCurrent(type)}

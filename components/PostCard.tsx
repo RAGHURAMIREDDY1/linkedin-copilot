@@ -43,6 +43,7 @@ export default function PostCard({
   savedAt,
   publishedAt,
   extra,
+  regenerating = false,
 }: {
   post: Post;
   onSave: (post: Post) => void;
@@ -57,6 +58,8 @@ export default function PostCard({
   publishedAt?: number;
   /** Extra footer actions (e.g. delete) supplied by the saved-posts views. */
   extra?: React.ReactNode;
+  /** True while live AI is redrafting this post. */
+  regenerating?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [hook, setHook] = useState(post.hook);
@@ -135,6 +138,14 @@ export default function PostCard({
             </span>
           ) : (
             <span className={`${chip} border-white/10 bg-white/5 text-slate-300`}>{draftSaved ? "Saved draft" : "Draft"}</span>
+          )}
+          {post.source === "ai" ? (
+            <span className={`${chip} border-violet-300/30 bg-violet-400/10 text-violet-200`}>
+              <Icon name="sparkles" className="h-3 w-3" />
+              AI-generated{post.model ? ` · ${post.model}` : ""}
+            </span>
+          ) : (
+            <span className={`${chip} border-white/10 bg-white/5 text-slate-300`}>Demo template</span>
           )}
           {isTrending && (
             <span className={`${chip} border-amber-300/30 bg-amber-300/10 text-amber-200`}>
@@ -216,9 +227,15 @@ export default function PostCard({
               </button>
             )}
             {onRegenerate && (
-              <button type="button" onClick={regenerate} className={`${btnSecondary} flex-1 sm:flex-none`}>
+              <button
+                type="button"
+                onClick={regenerate}
+                disabled={regenerating}
+                aria-busy={regenerating}
+                className={`${btnSecondary} flex-1 sm:flex-none`}
+              >
                 <Icon name="refresh" className="h-4 w-4" />
-                Regenerate
+                {regenerating ? "Regenerating…" : "Regenerate"}
               </button>
             )}
             {onSaveDraft && !published && (

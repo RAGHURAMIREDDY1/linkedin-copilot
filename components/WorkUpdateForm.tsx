@@ -10,6 +10,8 @@ export default function WorkUpdateForm({
   error,
   loading = false,
   rows = 5,
+  onGenerateLive,
+  aiError = "",
 }: {
   notes: string;
   onChange: (notes: string) => void;
@@ -17,6 +19,10 @@ export default function WorkUpdateForm({
   error: string;
   loading?: boolean;
   rows?: number;
+  /** Offered only when live AI is configured on the server. Demo generation stays the default action. */
+  onGenerateLive?: () => void;
+  /** A failed live AI attempt. Separate from `error`, which is about the notes. */
+  aiError?: string;
 }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
 
@@ -73,10 +79,24 @@ export default function WorkUpdateForm({
             </>
           )}
         </button>
+        {onGenerateLive && (
+          <button type="button" onClick={onGenerateLive} disabled={loading} className={btnSecondary}>
+            <Icon name="sparkles" className="h-4 w-4" />
+            Generate with AI
+          </button>
+        )}
         <button type="button" onClick={() => onChange(EXAMPLE_NOTES)} className={btnSecondary}>
           Try an example update
         </button>
       </div>
+      {aiError && (
+        <p
+          role="alert"
+          className="mt-3 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-200"
+        >
+          {aiError} Your existing drafts were not changed.
+        </p>
+      )}
     </section>
   );
 }

@@ -15,6 +15,10 @@ export interface Post {
   body: string;
   hashtags: string[];
   edited: boolean;
+  /** "ai" only for text written by the live model. Missing means a Demo Mode template (also for older saved posts). */
+  source?: "ai";
+  /** Model that wrote an AI post, as reported by the provider. */
+  model?: string;
   /** Id of the My Drafts record this post is saved as (set once it has been saved or published). */
   draftId?: string;
 }

@@ -5,6 +5,7 @@ import type { ActivityEvent, ActivityKind, LibraryItem, Post, Posts, PostType, P
 import { POST_TYPES } from "./types";
 import { DEFAULT_PROFILE, EXAMPLE_NOTES } from "./defaults";
 import { generateAllPosts, generatePost, parseNotes, SAMPLE_TRENDS, VARIANT_COUNT } from "./generators";
+import { fetchAiStatus, requestDrafts, type AiStatus } from "./ai/client";
 import { loadState, saveState } from "./storage";
 
 /** Short pause so the loading state is visible. Generation itself is instant and local. */
@@ -31,6 +32,14 @@ interface AppContextValue {
   error: string;
   /** Returns false (and sets `error`) when the notes are empty. */
   generate: () => boolean;
+  /** Whether the server has live AI configured (null until checked). Demo Mode never depends on it. */
+  ai: AiStatus | null;
+  /** Failure message from the last live AI attempt. Existing drafts are left untouched. */
+  aiError: string;
+  /** Live AI generation of all three drafts. Only offered when `ai.configured`. */
+  generateLive: () => Promise<boolean>;
+  /** The post type currently being redrafted by live AI, if any. */
+  regeneratingType: PostType | null;
   regenerate: (type: PostType) => void;
   savePost: (post: Post) => void;
   trendIndex: number;
@@ -79,6 +88,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [library, setLibrary] = useState<LibraryItem[]>([]);
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [error, setError] = useState("");
+  const [ai, setAi] = useState<AiStatus | null>(null);
+  const [aiError, setAiError] = useState("");
+  const [regeneratingType, setRegeneratingType] = useState<PostType | null>(null);
   // Bumped on every full generation so any open edit draft in a card is discarded.
   const [generation, setGeneration] = useState(0);
   const [generating, setGenerating] = useState(false);
@@ -90,6 +102,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // don't save until loading has finished (avoids overwriting stored data).
   const [loaded, setLoaded] = useState(false);
   const genTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Bumped when a newer action supersedes an in-flight live request, so its late answer is ignored.
+  const liveRequest = useRef(0);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Mirrors `library` so a rapid double-click on "I have published this" sees the first click's result.
   const libraryRef = useRef<LibraryItem[]>([]);
@@ -108,6 +122,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setNow(Date.now());
       setLoaded(true);
     });
+    fetchAiStatus().then(setAi);
     return () => {
       if (genTimer.current) clearTimeout(genTimer.current);
       if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -146,6 +161,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
     setError("");
+    setAiError("");
+    liveRequest.current++; // a Demo Mode generation supersedes any live redraft still in flight
+    setRegeneratingType(null);
     setGenerating(true);
     if (genTimer.current) clearTimeout(genTimer.current);
     genTimer.current = setTimeout(() => {
@@ -161,11 +179,77 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return true;
   }, [generating, notes, profile, trendIndex, log]);
 
+  const generateLive = useCallback(async (): Promise<boolean> => {
+    if (generating || regeneratingType) return true;
+    if (parseNotes(notes).length === 0) {
+      setError("Add a few notes about your day first, or try the example update.");
+      return false;
+    }
+    setError("");
+    setAiError("");
+    setGenerating(true);
+    const id = ++liveRequest.current;
+    try {
+      const result = await requestDrafts({ profile, notes, types: POST_TYPES, trendIndex, avoid: {} });
+      if (id !== liveRequest.current) return true;
+      const all = {} as Posts;
+      for (const type of POST_TYPES) {
+        const draft = result.posts[type];
+        if (!draft) throw new Error("The AI's answer was incomplete. Please try again, or use Demo Mode.");
+        // A trending post's variant records its sample topic, which is how the topic is restored on reload.
+        all[type] = { type, variant: type === "trending" ? trendIndex : 0, ...draft, edited: false, source: "ai", model: result.model };
+      }
+      setPosts(all);
+      setGeneration((g) => g + 1);
+      setNow(Date.now());
+      log("generated", 3);
+    } catch (e) {
+      if (id === liveRequest.current) setAiError(e instanceof Error ? e.message : "Live AI failed. Please try again.");
+    } finally {
+      if (id === liveRequest.current) setGenerating(false);
+    }
+    return true;
+  }, [generating, regeneratingType, notes, profile, trendIndex, log]);
+
+  const regenerateLive = useCallback(
+    async (type: PostType, current: Post) => {
+      setError("");
+      setAiError("");
+      setRegeneratingType(type);
+      const id = ++liveRequest.current;
+      try {
+        const result = await requestDrafts({ profile, notes, types: [type], trendIndex, avoid: { [type]: current.hook } });
+        if (id !== liveRequest.current) return;
+        const draft = result.posts[type];
+        if (!draft) throw new Error("The AI's answer was incomplete. Please try again, or use Demo Mode.");
+        const next: Post = {
+          type,
+          variant: type === "trending" ? trendIndex : 0,
+          ...draft,
+          edited: false,
+          source: "ai",
+          model: result.model,
+        };
+        setPosts((p) => (p ? { ...p, [type]: next } : p));
+      } catch (e) {
+        if (id === liveRequest.current) setAiError(e instanceof Error ? e.message : "Live AI failed. Please try again.");
+      } finally {
+        if (id === liveRequest.current) setRegeneratingType(null);
+      }
+    },
+    [profile, notes, trendIndex],
+  );
+
   const regenerate = useCallback(
     (type: PostType) => {
-      if (!posts) return;
+      if (!posts || generating || regeneratingType) return;
       if (type === "work" && parseNotes(notes).length === 0) {
         setError("Your daily notes are empty, so the Work & Learning post can't be regenerated.");
+        return;
+      }
+      // An AI draft is redrafted by the AI (never silently swapped for a template).
+      if (posts[type].source === "ai") {
+        void regenerateLive(type, posts[type]);
         return;
       }
       setError("");
@@ -173,7 +257,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setPosts({ ...posts, [type]: next });
       if (type === "trending") setTrendIndex(next.variant % SAMPLE_TRENDS.length);
     },
-    [posts, notes, profile],
+    [posts, generating, regeneratingType, regenerateLive, notes, profile],
   );
 
   // An edit applies to the current card and, if the post is saved, to its My Drafts record too.
@@ -191,7 +275,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const selectTrend = useCallback(
     (index: number) => {
       setTrendIndex(index);
-      if (posts) {
+      if (posts?.trending.source === "ai") {
+        // Don't overwrite an AI draft with a template; the next AI redraft uses the new topic.
+        notify("Topic selected. Press Regenerate on the Trending post to redraft it with AI.");
+      } else if (posts) {
         setPosts({ ...posts, trending: generatePost("trending", profile, notes, index) });
         notify("Trending post updated with that topic.");
       } else {
@@ -321,7 +408,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const clearAll = useCallback(() => {
     if (genTimer.current) clearTimeout(genTimer.current);
+    liveRequest.current++; // drop any in-flight live request
     setGenerating(false);
+    setRegeneratingType(null);
+    setAiError("");
     setProfile(DEFAULT_PROFILE);
     setNotesState("");
     setPosts(null);
@@ -337,14 +427,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AppContextValue>(
     () => ({
       loaded, now, profile, setProfile, notes, setNotes, fillExample, posts, generation, generating, error,
-      generate, regenerate, savePost, trendIndex, selectTrend, library, activity, isSaved, itemFor, saveDraft,
+      generate, ai, aiError, generateLive, regeneratingType, regenerate, savePost, trendIndex, selectTrend, library, activity, isSaved, itemFor, saveDraft,
       saveAllDrafts, publishId, publishCurrent, openPublish, closePublish, confirmPublished, moveToDrafts,
       removeItem, clearAll, toast,
     }),
     [
       loaded, now, profile, notes, setNotes, fillExample, posts, generation, generating, error, generate,
-      regenerate, savePost, trendIndex, selectTrend, library, activity, isSaved, itemFor, saveDraft, saveAllDrafts,
-      publishId, publishCurrent, openPublish, closePublish, confirmPublished, moveToDrafts, removeItem, clearAll,
+      ai, aiError, generateLive, regeneratingType, regenerate, savePost, trendIndex, selectTrend, library, activity,
+      isSaved, itemFor, saveDraft, saveAllDrafts, publishId, publishCurrent, openPublish, closePublish, confirmPublished, moveToDrafts, removeItem, clearAll,
       toast,
     ],
   );
