@@ -30,14 +30,19 @@ interface AppContextValue {
   generation: number;
   generating: boolean;
   error: string;
-  /** Returns false (and sets `error`) when the notes are empty. */
+  /** True while the in-flight generation is a live Claude request (as opposed to Demo Mode templates). */
+  generatingLive: boolean;
+  /**
+   * "Generate Today's 3 Posts": drafts all three posts with Claude via the server. Returns false (and sets `error`)
+   * when the notes are empty; otherwise the request runs in the background and failures land in `aiError`.
+   */
   generate: () => boolean;
+  /** Explicit Demo Mode: local templates, no AI. Never used as a silent fallback for a failed live request. */
+  generateDemo: () => boolean;
   /** Whether the server has live AI configured (null until checked). Demo Mode never depends on it. */
   ai: AiStatus | null;
   /** Failure message from the last live AI attempt. Existing drafts are left untouched. */
   aiError: string;
-  /** Live AI generation of all three drafts. Only offered when `ai.configured`. */
-  generateLive: () => Promise<boolean>;
   /** The post type currently being redrafted by live AI, if any. */
   regeneratingType: PostType | null;
   regenerate: (type: PostType) => void;
@@ -94,6 +99,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Bumped on every full generation so any open edit draft in a card is discarded.
   const [generation, setGeneration] = useState(0);
   const [generating, setGenerating] = useState(false);
+  const [generatingLive, setGeneratingLive] = useState(false);
   const [trendIndex, setTrendIndex] = useState(0);
   const [toast, setToast] = useState<Toast | null>(null);
   const [publishId, setPublishId] = useState<string | null>(null);
@@ -154,8 +160,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const fillExample = useCallback(() => setNotes(EXAMPLE_NOTES), [setNotes]);
 
-  const generate = useCallback((): boolean => {
-    if (generating) return true;
+  const generateDemo = useCallback((): boolean => {
+    if (generating || regeneratingType) return true;
     if (parseNotes(notes).length === 0) {
       setError("Add a few notes about your day first, or try the example update.");
       return false;
@@ -164,6 +170,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setAiError("");
     liveRequest.current++; // a Demo Mode generation supersedes any live redraft still in flight
     setRegeneratingType(null);
+    setGeneratingLive(false);
     setGenerating(true);
     if (genTimer.current) clearTimeout(genTimer.current);
     genTimer.current = setTimeout(() => {
@@ -177,9 +184,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       log("generated", 3);
     }, GENERATE_MS);
     return true;
-  }, [generating, notes, profile, trendIndex, log]);
+  }, [generating, regeneratingType, notes, profile, trendIndex, log]);
 
-  const generateLive = useCallback(async (): Promise<boolean> => {
+  const generate = useCallback((): boolean => {
     if (generating || regeneratingType) return true;
     if (parseNotes(notes).length === 0) {
       setError("Add a few notes about your day first, or try the example update.");
@@ -187,29 +194,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setError("");
     setAiError("");
+    if (ai && !ai.configured) {
+      // No key on the server: say so instead of quietly producing templates.
+      setAiError(
+        "Live AI isn't set up: ANTHROPIC_API_KEY is missing on the server. Add it to .env.local (or your host's environment variables) and restart, or use demo templates.",
+      );
+      return true;
+    }
+    setGeneratingLive(true);
     setGenerating(true);
     const id = ++liveRequest.current;
-    try {
-      const result = await requestDrafts({ profile, notes, types: POST_TYPES, trendIndex, avoid: {} });
-      if (id !== liveRequest.current) return true;
-      const all = {} as Posts;
-      for (const type of POST_TYPES) {
-        const draft = result.posts[type];
-        if (!draft) throw new Error("The AI's answer was incomplete. Please try again, or use Demo Mode.");
-        // A trending post's variant records its sample topic, which is how the topic is restored on reload.
-        all[type] = { type, variant: type === "trending" ? trendIndex : 0, ...draft, edited: false, source: "ai", model: result.model };
+    void (async () => {
+      try {
+        const result = await requestDrafts({ profile, notes, types: POST_TYPES, trendIndex, avoid: {} });
+        if (id !== liveRequest.current) return;
+        const all = {} as Posts;
+        for (const type of POST_TYPES) {
+          const draft = result.posts[type];
+          if (!draft) throw new Error("The AI's answer was incomplete. Please try again, or use demo templates.");
+          // A trending post's variant records its sample topic, which is how the topic is restored on reload.
+          all[type] = { type, variant: type === "trending" ? trendIndex : 0, ...draft, edited: false, source: "ai", model: result.model };
+        }
+        setPosts(all);
+        setGeneration((g) => g + 1);
+        setNow(Date.now());
+        log("generated", 3);
+      } catch (e) {
+        if (id === liveRequest.current) setAiError(e instanceof Error ? e.message : "Live AI failed. Please try again.");
+      } finally {
+        if (id === liveRequest.current) {
+          setGenerating(false);
+          setGeneratingLive(false);
+        }
       }
-      setPosts(all);
-      setGeneration((g) => g + 1);
-      setNow(Date.now());
-      log("generated", 3);
-    } catch (e) {
-      if (id === liveRequest.current) setAiError(e instanceof Error ? e.message : "Live AI failed. Please try again.");
-    } finally {
-      if (id === liveRequest.current) setGenerating(false);
-    }
+    })();
     return true;
-  }, [generating, regeneratingType, notes, profile, trendIndex, log]);
+  }, [generating, regeneratingType, ai, notes, profile, trendIndex, log]);
 
   const regenerateLive = useCallback(
     async (type: PostType, current: Post) => {
@@ -221,7 +241,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const result = await requestDrafts({ profile, notes, types: [type], trendIndex, avoid: { [type]: current.hook } });
         if (id !== liveRequest.current) return;
         const draft = result.posts[type];
-        if (!draft) throw new Error("The AI's answer was incomplete. Please try again, or use Demo Mode.");
+        if (!draft) throw new Error("The AI's answer was incomplete. Please try again, or use demo templates.");
         const next: Post = {
           type,
           variant: type === "trending" ? trendIndex : 0,
@@ -410,6 +430,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (genTimer.current) clearTimeout(genTimer.current);
     liveRequest.current++; // drop any in-flight live request
     setGenerating(false);
+    setGeneratingLive(false);
     setRegeneratingType(null);
     setAiError("");
     setProfile(DEFAULT_PROFILE);
@@ -426,14 +447,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AppContextValue>(
     () => ({
-      loaded, now, profile, setProfile, notes, setNotes, fillExample, posts, generation, generating, error,
-      generate, ai, aiError, generateLive, regeneratingType, regenerate, savePost, trendIndex, selectTrend, library, activity, isSaved, itemFor, saveDraft,
+      loaded, now, profile, setProfile, notes, setNotes, fillExample, posts, generation, generating, generatingLive, error,
+      generate, generateDemo, ai, aiError, regeneratingType, regenerate, savePost, trendIndex, selectTrend, library, activity, isSaved, itemFor, saveDraft,
       saveAllDrafts, publishId, publishCurrent, openPublish, closePublish, confirmPublished, moveToDrafts,
       removeItem, clearAll, toast,
     }),
     [
-      loaded, now, profile, notes, setNotes, fillExample, posts, generation, generating, error, generate,
-      ai, aiError, generateLive, regeneratingType, regenerate, savePost, trendIndex, selectTrend, library, activity,
+      loaded, now, profile, notes, setNotes, fillExample, posts, generation, generating, generatingLive, error, generate, generateDemo,
+      ai, aiError, regeneratingType, regenerate, savePost, trendIndex, selectTrend, library, activity,
       isSaved, itemFor, saveDraft, saveAllDrafts, publishId, publishCurrent, openPublish, closePublish, confirmPublished, moveToDrafts, removeItem, clearAll,
       toast,
     ],

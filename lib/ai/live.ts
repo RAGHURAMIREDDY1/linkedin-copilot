@@ -11,7 +11,7 @@ import { POST_TYPES } from "../types";
 
 // ---------- configuration (environment variables, server side only) ----------
 
-export const DEFAULT_MODEL = "claude-opus-5-5";
+export const DEFAULT_MODEL = "claude-sonnet-4-6";
 const DEFAULT_TIMEOUT_MS = 60_000;
 
 export interface AiConfig {
@@ -24,7 +24,7 @@ export function aiConfig(): AiConfig {
   const timeout = Number(process.env.SIGNALPOST_AI_TIMEOUT_MS);
   return {
     configured: !!process.env.ANTHROPIC_API_KEY?.trim(),
-    model: process.env.SIGNALPOST_AI_MODEL?.trim() || DEFAULT_MODEL,
+    model: process.env.ANTHROPIC_MODEL?.trim() || DEFAULT_MODEL,
     timeoutMs: Number.isFinite(timeout) && timeout >= 1000 ? timeout : DEFAULT_TIMEOUT_MS,
   };
 }
@@ -242,7 +242,7 @@ export function validateDrafts(raw: unknown, types: PostType[]): Record<PostType
 
 export async function generateDrafts(req: DraftRequest): Promise<{ model: string; posts: Record<PostType, AiDraft> }> {
   const cfg = aiConfig();
-  if (!cfg.configured) throw new AiError("not_configured", 503, "Live AI isn't configured on this server.");
+  if (!cfg.configured) throw new AiError("not_configured", 503, "Live AI isn't set up: ANTHROPIC_API_KEY is missing on the server.");
 
   // The key is read from the environment here, on the server, and nowhere else. authToken is pinned to null so
   // the SDK can't quietly authenticate with an ANTHROPIC_AUTH_TOKEN that "configured" never checked.
@@ -257,9 +257,9 @@ export async function generateDrafts(req: DraftRequest): Promise<{ model: string
   try {
     const response = await client.messages.create({
       model: cfg.model,
-      max_tokens: 12000, // headroom for the model's reasoning plus three short posts
+      max_tokens: 4096, // three posts of ~200 words is roughly 1,500 tokens
       system: SYSTEM_PROMPT,
-      output_config: { effort: "medium", format: { type: "json_schema", schema: responseSchema(req.types) } },
+      output_config: { format: { type: "json_schema", schema: responseSchema(req.types) } },
       messages: [{ role: "user", content: buildUserMessage(req) }],
     });
 
@@ -288,10 +288,10 @@ export async function generateDrafts(req: DraftRequest): Promise<{ model: string
       throw new AiError("provider_auth", 502, "The server's AI key was rejected. Check ANTHROPIC_API_KEY.");
     }
     if (error instanceof Anthropic.NotFoundError) {
-      throw new AiError("provider_rejected", 502, `The AI model "${cfg.model}" wasn't found. Check SIGNALPOST_AI_MODEL.`);
+      throw new AiError("provider_rejected", 502, `The AI model "${cfg.model}" wasn't found. Check ANTHROPIC_MODEL.`);
     }
     if (error instanceof Anthropic.BadRequestError || error instanceof Anthropic.UnprocessableEntityError) {
-      throw new AiError("provider_rejected", 502, "The AI provider rejected the request. Check SIGNALPOST_AI_MODEL supports this setup.");
+      throw new AiError("provider_rejected", 502, "The AI provider rejected the request. Check ANTHROPIC_MODEL supports this setup.");
     }
     if (error instanceof Anthropic.RateLimitError) {
       throw new AiError("provider_rate_limited", 429, "The AI provider is rate limiting requests. Wait a moment and try again.");

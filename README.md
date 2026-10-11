@@ -20,20 +20,24 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Live AI drafting (optional)
+## Live AI drafting
 
-SignalPost works out of the box in **Demo Mode** (local templates, no keys). To also offer **Generate with AI**,
-create `.env.local` (git-ignored) and restart the server:
+"Generate Today's 3 Posts" drafts all three posts with Claude in a single request. Create `.env.local`
+(git-ignored) and restart the server:
 
 ```bash
-ANTHROPIC_API_KEY=sk-ant-...          # required to enable live AI
-SIGNALPOST_AI_MODEL=claude-opus-5-5   # optional, this is the default
-SIGNALPOST_AI_TIMEOUT_MS=60000        # optional per-request timeout
+ANTHROPIC_API_KEY=sk-ant-...        # required
+ANTHROPIC_MODEL=claude-sonnet-4-6   # optional, this is the default
+SIGNALPOST_AI_TIMEOUT_MS=60000      # optional per-request timeout
 ```
 
+On Vercel, set the same variables under Project Settings → Environment Variables and redeploy.
+
 The key is read only on the server (`app/api/ai/route.ts`, `lib/ai/live.ts`) and is never sent to the browser.
-AI drafts carry an "AI-generated" label; template drafts carry "Demo template". Trending topics remain sample data,
-and nothing is ever posted to LinkedIn for you. Requests are capped at 10 per minute per server process.
+Without a key the button shows a clear error; **Use demo templates** is the explicit no-AI fallback and is never
+substituted silently. AI drafts carry an "AI-generated" label; template drafts carry "Demo template". Trending
+topics remain sample data, and nothing is ever posted to LinkedIn for you. Requests are capped at 10 per minute
+per server process.
 
 ## Learn More
 

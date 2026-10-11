@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
       throw new AiError("invalid_request", 415, "Requests must be sent as JSON.");
     }
-    if (!aiConfig().configured) throw new AiError("not_configured", 503, "Live AI isn't configured on this server.");
+    if (!aiConfig().configured) throw new AiError("not_configured", 503, "Live AI isn't set up: ANTHROPIC_API_KEY is missing on the server.");
 
     const raw = await request.text();
     if (raw.length > MAX_BODY_BYTES) throw new AiError("invalid_request", 413, "That request is too large.");

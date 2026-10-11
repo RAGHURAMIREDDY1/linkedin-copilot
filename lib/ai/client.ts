@@ -42,22 +42,22 @@ export async function requestDrafts(input: {
       signal: AbortSignal.timeout(CLIENT_TIMEOUT_MS),
     });
   } catch {
-    throw new Error("Couldn't reach the server for live AI. Check your connection, or use Demo Mode.");
+    throw new Error("Couldn't reach the server for live AI. Check your connection, or use demo templates.");
   }
 
   let data: unknown;
   try {
     data = await res.json();
   } catch {
-    throw new Error("The server sent an unreadable response. Please try again, or use Demo Mode.");
+    throw new Error("The server sent an unreadable response. Please try again, or use demo templates.");
   }
 
   const d = data as { ok?: boolean; error?: unknown; model?: unknown; posts?: unknown } | null;
   if (!res.ok || !d?.ok) {
-    throw new Error(typeof d?.error === "string" ? d.error : "Live AI failed. Please try again, or use Demo Mode.");
+    throw new Error(typeof d?.error === "string" ? d.error : "Live AI failed. Please try again, or use demo templates.");
   }
   if (typeof d.model !== "string" || !d.posts || typeof d.posts !== "object") {
-    throw new Error("The server sent an unexpected response. Please try again, or use Demo Mode.");
+    throw new Error("The server sent an unexpected response. Please try again, or use demo templates.");
   }
   return { model: d.model, posts: d.posts as AiResult["posts"] };
 }

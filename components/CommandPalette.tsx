@@ -61,7 +61,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       {
         id: "generate",
         label: "Generate today's 3 posts",
-        hint: hasNotes ? "Build three drafts from your notes" : "Add notes first, then generate",
+        hint: hasNotes ? "Draft three posts from your notes with Claude" : "Add notes first, then generate",
         icon: "sparkles",
         group: "Actions",
         run: () => {

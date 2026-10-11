@@ -148,6 +148,7 @@ export default function OverviewView() {
           onGenerate={generate}
           error={app.error}
           loading={app.generating}
+          loadingLive={app.generatingLive}
           rows={4}
         />
       </div>

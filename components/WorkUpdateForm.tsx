@@ -9,8 +9,9 @@ export default function WorkUpdateForm({
   onGenerate,
   error,
   loading = false,
+  loadingLive = false,
   rows = 5,
-  onGenerateLive,
+  onGenerateDemo,
   aiError = "",
 }: {
   notes: string;
@@ -18,9 +19,11 @@ export default function WorkUpdateForm({
   onGenerate: () => void;
   error: string;
   loading?: boolean;
+  /** Whether the running generation is a live Claude request, for the button's wording. */
+  loadingLive?: boolean;
   rows?: number;
-  /** Offered only when live AI is configured on the server. Demo generation stays the default action. */
-  onGenerateLive?: () => void;
+  /** Explicit Demo Mode fallback: local templates, no AI. */
+  onGenerateDemo?: () => void;
   /** A failed live AI attempt. Separate from `error`, which is about the notes. */
   aiError?: string;
 }) {
@@ -70,7 +73,7 @@ export default function WorkUpdateForm({
           {loading ? (
             <>
               <span aria-hidden="true" className="anim-spin h-4 w-4 rounded-full border-2 border-white/30 border-t-white" />
-              Building drafts…
+              {loadingLive ? "Asking Claude…" : "Building drafts…"}
             </>
           ) : (
             <>
@@ -79,10 +82,9 @@ export default function WorkUpdateForm({
             </>
           )}
         </button>
-        {onGenerateLive && (
-          <button type="button" onClick={onGenerateLive} disabled={loading} className={btnSecondary}>
-            <Icon name="sparkles" className="h-4 w-4" />
-            Generate with AI
+        {onGenerateDemo && (
+          <button type="button" onClick={onGenerateDemo} disabled={loading} className={btnSecondary}>
+            Use demo templates
           </button>
         )}
         <button type="button" onClick={() => onChange(EXAMPLE_NOTES)} className={btnSecondary}>
