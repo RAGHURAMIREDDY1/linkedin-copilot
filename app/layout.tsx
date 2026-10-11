@@ -16,10 +16,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "SignalPost: LinkedIn Growth Studio (Demo Mode)",
+    default: "SignalPost: LinkedIn Growth Studio",
     template: "%s · SignalPost",
   },
-  description: "Turn your daily work update into three LinkedIn posts. Demo Mode: local templates, no AI, no live data.",
+  description: "Turn your daily work update into three LinkedIn posts. Works in Demo Mode with local templates; optional live AI. You publish manually.",
 };
 
 export const viewport: Viewport = {

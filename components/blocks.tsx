@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Icon, type IconName } from "./icons";
-import { btnPrimary, chip, eyebrow } from "./ui";
+import { btnPrimary, chip, eyebrow, focusRing } from "./ui";
 
 export function PageHeader({
   eyebrow: kicker,
@@ -75,23 +75,36 @@ export function StatTile({
   value,
   caption,
   icon,
+  href,
 }: {
   label: string;
   value: string | number;
   caption: string;
   icon: IconName;
+  /** When set, the whole tile links to the page where this number comes from. */
+  href?: string;
 }) {
-  return (
-    <div className="surface h-full p-4 sm:p-5">
+  const body = (
+    <>
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-medium text-slate-300">{label}</p>
-        <span className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-violet-300">
+        <span className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-violet-300 transition-colors group-hover:border-violet-400/40 group-hover:bg-violet-400/10">
           <Icon name={icon} className="h-4 w-4" />
         </span>
       </div>
-      <p className="mt-3 text-4xl font-semibold tracking-tight text-white">{value}</p>
-      <p className="mt-1 text-xs text-slate-400">{caption}</p>
-    </div>
+      <p className="mt-3 text-4xl font-semibold tracking-tight text-white tabular-nums">{value}</p>
+      <p className="mt-1 flex items-center justify-between gap-2 text-xs text-slate-400">
+        <span>{caption}</span>
+        {href && <Icon name="chevronRight" className="h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform group-hover:translate-x-0.5 group-hover:text-violet-300" />}
+      </p>
+    </>
+  );
+  return href ? (
+    <Link href={href} className={`surface surface-hover group block h-full p-4 sm:p-5 ${focusRing}`}>
+      {body}
+    </Link>
+  ) : (
+    <div className="surface h-full p-4 sm:p-5">{body}</div>
   );
 }
 

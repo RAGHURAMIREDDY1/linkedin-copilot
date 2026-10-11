@@ -28,7 +28,7 @@ function useDismiss(ref: React.RefObject<HTMLElement | null>, open: boolean, onC
 }
 
 function NotificationsMenu() {
-  const { library, posts, isSaved } = useApp();
+  const { library, posts, isSaved, ai } = useApp();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useDismiss(ref, open, () => setOpen(false));
@@ -38,7 +38,9 @@ function NotificationsMenu() {
 
   // Honest, local-only notices. Nothing here comes from LinkedIn.
   const items: { title: string; body: string; href?: string }[] = [
-    { title: "You're in Demo Mode", body: "Drafts come from local templates. Nothing is sent to LinkedIn." },
+    ai?.configured
+      ? { title: "Live AI is on", body: "AI drafts are labelled. Demo templates stay available. Nothing is sent to LinkedIn." }
+      : { title: "You're in Demo Mode", body: "Live AI isn't set up on this server, so drafts come from local templates." },
     { title: "Trending topics are sample data", body: "Live trend detection isn't connected in this demo." },
   ];
   if (unsaved) {
@@ -110,7 +112,8 @@ export default function Topbar({
   onOpenPalette: () => void;
   navOpen: boolean;
 }) {
-  const { now, profile } = useApp();
+  const { now, profile, ai } = useApp();
+  const liveReady = ai?.configured === true;
   const [isMac, setIsMac] = useState(false);
 
   useEffect(() => {
@@ -162,24 +165,44 @@ export default function Topbar({
         </kbd>
       </button>
 
+      {/* Status, not a switch: Demo templates always work; Live AI is on only when the server has a key. */}
       <div
         role="group"
-        aria-label="Mode"
+        aria-label="Generation status"
         className="flex shrink-0 items-center whitespace-nowrap rounded-full border border-white/10 bg-ink-950/50 p-0.5 text-[11px] font-bold uppercase tracking-wide"
       >
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/15 px-2 py-1 text-amber-200 sm:px-2.5">
-          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-          <span aria-hidden="true" className="sm:hidden">Demo</span>
-          <span className="sr-only sm:not-sr-only">Demo Mode</span>
-        </span>
-        <span
-          className="hidden items-center gap-1 px-2.5 py-1 text-slate-400 lg:inline-flex"
-          title="Live mode needs a LinkedIn and AI connection, which this demo doesn't have."
-        >
-          <Icon name="lock" className="h-3 w-3" />
-          Live
-          <span className="sr-only">(not available in this demo)</span>
-        </span>
+        {liveReady ? (
+          <>
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full bg-cyan-400/15 px-2 py-1 text-cyan-200 sm:px-2.5"
+              title={`Live AI is ready (${ai?.model ?? "model"}). AI drafts are labelled.`}
+            >
+              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_8px_rgb(103_232_249/0.8)]" />
+              <span aria-hidden="true" className="sm:hidden">AI</span>
+              <span className="sr-only sm:not-sr-only">Live AI</span>
+              <span className="sr-only">ready</span>
+            </span>
+            <span className="hidden px-2.5 py-1 text-slate-400 lg:inline-flex" title="Demo templates are always available.">
+              Demo
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/15 px-2 py-1 text-amber-200 sm:px-2.5">
+              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              <span aria-hidden="true" className="sm:hidden">Demo</span>
+              <span className="sr-only sm:not-sr-only">Demo Mode</span>
+            </span>
+            <span
+              className="hidden items-center gap-1 px-2.5 py-1 text-slate-400 lg:inline-flex"
+              title={ai ? "Live AI isn't set up: add ANTHROPIC_API_KEY on the server." : "Checking live AI status…"}
+            >
+              <Icon name="lock" className="h-3 w-3" />
+              Live AI
+              <span className="sr-only">{ai ? "(not set up on this server)" : "(checking)"}</span>
+            </span>
+          </>
+        )}
       </div>
 
       <NotificationsMenu />

@@ -117,10 +117,17 @@ export default function OverviewView() {
             </span>
           </p>
 
-          <p className="relative mt-4 max-w-md text-sm leading-relaxed text-amber-100/90 sm:mt-5">
-            <strong className="font-semibold text-amber-200">Demo Mode:</strong> local templates only. No AI, live trends
-            or LinkedIn connection.
-          </p>
+          {app.ai?.configured ? (
+            <p className="relative mt-4 max-w-md text-sm leading-relaxed text-cyan-100/90 sm:mt-5">
+              <strong className="font-semibold text-cyan-200">Live AI is on.</strong> AI drafts are labelled. Trends are
+              sample data and nothing is posted to LinkedIn for you.
+            </p>
+          ) : (
+            <p className="relative mt-4 max-w-md text-sm leading-relaxed text-amber-100/90 sm:mt-5">
+              <strong className="font-semibold text-amber-200">Demo Mode:</strong> local templates. Live AI isn&apos;t set
+              up, trends are sample data, and there is no LinkedIn connection.
+            </p>
+          )}
 
           {/* Decorative depth: three stacked "post" tiles in perspective. */}
           <div aria-hidden="true" className="stack-scene pointer-events-none absolute bottom-8 right-16 hidden h-32 w-44 2xl:block">
@@ -188,10 +195,16 @@ export default function OverviewView() {
           </Link>
         </div>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatTile label="Posts generated" value={totals.generated} caption="All time, this browser" icon="sparkles" />
-          <StatTile label="Drafts saved" value={drafts.length} caption="Waiting in My Drafts" icon="file" />
-          <StatTile label="Published" value={published.length} caption="Confirmed by you" icon="send" />
-          <StatTile label="Active days" value={activeDays(dailySeries(app.activity, 14, app.now))} caption="Of the last 14" icon="calendar" />
+          <StatTile label="Posts generated" value={totals.generated} caption="All time, this browser" icon="sparkles" href="/create" />
+          <StatTile label="Drafts saved" value={drafts.length} caption="Waiting in My Drafts" icon="file" href="/drafts" />
+          <StatTile label="Published" value={published.length} caption="Confirmed by you" icon="send" href="/published" />
+          <StatTile
+            label="Consistency"
+            value={`${activeDays(dailySeries(app.activity, 14, app.now))}/14`}
+            caption="Active days, last 14"
+            icon="calendar"
+            href="/analytics"
+          />
         </div>
         <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <ActivityChart

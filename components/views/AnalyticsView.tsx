@@ -11,7 +11,8 @@ export default function AnalyticsView() {
   if (!app.loaded) return <PageSkeleton rows={4} />;
 
   const hasActivity = app.activity.length > 0;
-  const series = hasActivity ? dailySeries(app.activity, 30, app.now) : sampleSeries(30, app.now);
+  const real = dailySeries(app.activity, 30, app.now);
+  const series = hasActivity ? real : sampleSeries(30, app.now);
   const totals = totalsByKind(app.activity);
   const drafts = app.library.filter((i) => i.status === "draft").length;
   const published = app.library.filter((i) => i.status === "published").length;
@@ -30,10 +31,11 @@ export default function AnalyticsView() {
       </DemoNote>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatTile label="Posts generated" value={totals.generated} caption="All time" icon="sparkles" />
-        <StatTile label="Drafts saved" value={totals.saved} caption={`${drafts} still in drafts`} icon="file" />
-        <StatTile label="Published" value={totals.posted} caption={`${published} currently published`} icon="send" />
-        <StatTile label="Active days" value={activeDays(series.slice(-14))} caption="Of the last 14" icon="calendar" />
+        <StatTile label="Posts generated" value={totals.generated} caption="All time" icon="sparkles" href="/create" />
+        <StatTile label="Drafts saved" value={totals.saved} caption={`${drafts} still in drafts`} icon="file" href="/drafts" />
+        <StatTile label="Published" value={totals.posted} caption={`${published} currently published`} icon="send" href="/published" />
+        {/* Always from real activity: the sample chart must never feed a headline number. */}
+        <StatTile label="Consistency" value={`${activeDays(real.slice(-14))}/14`} caption="Active days, last 14" icon="calendar" />
       </div>
 
       <ActivityChart

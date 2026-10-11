@@ -25,7 +25,7 @@ export interface PostTheme {
 
 export const POST_THEME: Record<PostType, PostTheme> = {
   trending: {
-    kicker: "Sample topic, not live news",
+    kicker: "Your take on a sample topic",
     icon: "trending",
     swatch: "#19a9a0",
     text: "text-cyan-300",

@@ -7,16 +7,32 @@ import { Icon, type IconName } from "../icons";
 import ProfileForm from "../ProfileForm";
 import { btnDanger, btnSecondary, chip, cardClass } from "../ui";
 
-const CONNECTIONS: { icon: IconName; name: string; detail: string }[] = [
-  { icon: "user", name: "LinkedIn account", detail: "Needed to publish posts and read engagement." },
-  { icon: "sparkles", name: "AI writing model", detail: "Drafts currently come from built-in templates." },
-  { icon: "trending", name: "Live trend data", detail: "Trending topics currently use fixed sample data." },
-];
+interface Connection {
+  icon: IconName;
+  name: string;
+  detail: string;
+  /** Set only when the server reports it is configured. */
+  ready?: boolean;
+}
 
 export default function SettingsView() {
   const app = useApp();
   const [confirming, setConfirming] = useState(false);
   if (!app.loaded) return <PageSkeleton rows={2} />;
+
+  const liveReady = app.ai?.configured === true;
+  const connections: Connection[] = [
+    { icon: "user", name: "LinkedIn account", detail: "Needed to publish posts and read engagement." },
+    liveReady
+      ? {
+          icon: "sparkles",
+          name: "AI writing model",
+          detail: `Configured on the server (${app.ai?.model ?? "model"}). The key never reaches your browser.`,
+          ready: true,
+        }
+      : { icon: "sparkles", name: "AI writing model", detail: "Not set up: add ANTHROPIC_API_KEY on the server. Demo templates still work." },
+    { icon: "trending", name: "Live trend data", detail: "Trending topics currently use fixed sample data." },
+  ];
 
   return (
     <div className="space-y-6">
@@ -31,11 +47,21 @@ export default function SettingsView() {
               Connections
             </h2>
             <DemoNote className="mt-3">
-              You&apos;re in <strong className="font-semibold">Demo Mode</strong>. Nothing below is connected, and nothing
-              leaves your browser.
+              {liveReady ? (
+                <>
+                  <strong className="font-semibold">Live AI is on.</strong> When you use it, your profile and notes are
+                  sent through this app&apos;s server to the AI provider. Demo templates never leave your browser. There is
+                  no LinkedIn connection.
+                </>
+              ) : (
+                <>
+                  You&apos;re in <strong className="font-semibold">Demo Mode</strong>. Nothing below is connected, and
+                  nothing leaves your browser.
+                </>
+              )}
             </DemoNote>
             <ul className="mt-4 divide-y divide-white/[0.06]">
-              {CONNECTIONS.map((c) => (
+              {connections.map((c) => (
                 <li key={c.name} className="flex flex-wrap items-center gap-3 py-3.5">
                   <span className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-300">
                     <Icon name={c.icon} className="h-[18px] w-[18px]" />
@@ -44,10 +70,19 @@ export default function SettingsView() {
                     <span className="block text-sm font-semibold text-slate-100">{c.name}</span>
                     <span className="block text-xs text-slate-400">{c.detail}</span>
                   </span>
-                  <span className={`${chip} border-white/10 bg-white/5 text-slate-300`}>Not connected</span>
-                  <button type="button" disabled className={btnSecondary} aria-label={`Connect ${c.name} (not available in Demo Mode)`}>
-                    Connect
-                  </button>
+                  {c.ready ? (
+                    <span className={`${chip} border-cyan-400/30 bg-cyan-400/10 text-cyan-200`}>
+                      <Icon name="check" className="h-3 w-3" />
+                      Ready
+                    </span>
+                  ) : (
+                    <>
+                      <span className={`${chip} border-white/10 bg-white/5 text-slate-300`}>Not connected</span>
+                      <button type="button" disabled className={btnSecondary} aria-label={`Connect ${c.name} (not available yet)`}>
+                        Connect
+                      </button>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>

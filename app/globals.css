@@ -31,13 +31,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Ambient gradient mesh. Static and cheap: one fixed layer, no animation. */
+/* Ambient gradient mesh. One fixed, oversized layer that drifts very slowly (transform only, so it
+   stays on the compositor and never repaints); switched off for reduced motion below. */
 body::before {
   content: "";
   position: fixed;
-  inset: 0;
+  inset: -6%;
   z-index: -1;
   pointer-events: none;
+  animation: ambient-drift 48s ease-in-out infinite alternate;
+  will-change: transform;
   background:
     radial-gradient(58rem 38rem at 8% -8%, rgb(124 106 232 / 0.2), transparent 62%),
     radial-gradient(46rem 32rem at 96% 2%, rgb(34 211 238 / 0.09), transparent 62%),
@@ -46,6 +49,13 @@ body::before {
 
 ::selection {
   background: rgb(139 124 240 / 0.4);
+}
+
+/* Keyboard focus fallback for anything without its own ring. Zero specificity, so components that set
+   their own focus styles (focusRing, field classes) always win. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid rgb(167 139 250 / 0.9);
+  outline-offset: 2px;
 }
 
 /* ---------- surfaces ---------- */
@@ -193,6 +203,14 @@ body::before {
     opacity: 0;
   }
 }
+@keyframes ambient-drift {
+  from {
+    transform: translate3d(-1.5%, -1%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(1.5%, 1.2%, 0) scale(1.04);
+  }
+}
 @keyframes float-y {
   50% {
     transform: translateY(-8px);
@@ -258,7 +276,8 @@ body::before {
   .tilt:hover {
     transform: none !important;
   }
-  .skeleton {
+  .skeleton,
+  body::before {
     animation: none;
   }
 }

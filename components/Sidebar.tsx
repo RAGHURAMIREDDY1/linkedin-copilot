@@ -19,7 +19,8 @@ export default function Sidebar({
   onClose: () => void;
 }) {
   const pathname = usePathname();
-  const { library, loaded } = useApp();
+  const { library, loaded, ai } = useApp();
+  const liveReady = ai?.configured === true;
   const counts: Record<string, number> = loaded
     ? {
         "/drafts": library.filter((i) => i.status === "draft").length,
@@ -104,15 +105,23 @@ export default function Sidebar({
 
         <div className="mt-3 space-y-2">
           <div
-            className={`rounded-xl border border-amber-300/20 bg-amber-300/[0.07] p-3 ${collapsed ? "lg:flex lg:justify-center lg:p-2" : ""}`}
-            title={collapsed ? "Demo Mode: local templates only" : undefined}
+            className={`rounded-xl border p-3 ${
+              liveReady ? "border-cyan-300/20 bg-cyan-300/[0.06]" : "border-amber-300/20 bg-amber-300/[0.07]"
+            } ${collapsed ? "lg:flex lg:justify-center lg:p-2" : ""}`}
+            title={collapsed ? (liveReady ? "Live AI ready. Demo templates available." : "Demo Mode: local templates only") : undefined}
           >
-            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-200">
-              <span aria-hidden="true" className="h-2 w-2 rounded-full bg-amber-400" />
-              <span className={hideLabel}>Demo Mode</span>
+            <p
+              className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wide ${
+                liveReady ? "text-cyan-200" : "text-amber-200"
+              }`}
+            >
+              <span aria-hidden="true" className={`h-2 w-2 rounded-full ${liveReady ? "bg-cyan-300" : "bg-amber-400"}`} />
+              <span className={hideLabel}>{liveReady ? "Live AI ready" : "Demo Mode"}</span>
             </p>
             <p className={`mt-1.5 text-xs leading-relaxed text-slate-300 ${hideLabel}`}>
-              Local templates only. No AI, live trends or LinkedIn connection.
+              {liveReady
+                ? "Drafts are written by AI and labelled. Trends are sample data; nothing posts to LinkedIn."
+                : "Local templates only. Live AI isn't set up; trends are sample data and nothing posts to LinkedIn."}
             </p>
           </div>
           <button

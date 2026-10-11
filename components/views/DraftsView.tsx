@@ -1,13 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { useApp } from "@/lib/store";
 import { EmptyState, PageHeader, PageSkeleton } from "../blocks";
 import LibraryCard from "../LibraryCard";
+import LibraryToolbar, { NO_FILTERS, NoMatches, filterItems } from "../LibraryToolbar";
 
 export default function DraftsView() {
   const app = useApp();
+  const [filters, setFilters] = useState(NO_FILTERS);
   if (!app.loaded) return <PageSkeleton rows={2} />;
   const drafts = app.library.filter((i) => i.status === "draft");
+  const visible = filterItems(drafts, filters, app.now, (i) => i.createdAt);
 
   return (
     <div className="space-y-6">
@@ -29,13 +33,20 @@ export default function DraftsView() {
           cta="Create posts"
         />
       ) : (
-        <div className="stagger grid gap-4 xl:grid-cols-2">
-          {drafts.map((item, i) => (
-            <div key={item.id} style={{ ["--i" as string]: Math.min(i, 8) }}>
-              <LibraryCard item={item} />
+        <>
+          <LibraryToolbar filters={filters} onChange={setFilters} shown={visible.length} total={drafts.length} dateLabel="Saved" />
+          {visible.length === 0 ? (
+            <NoMatches onClear={() => setFilters(NO_FILTERS)} />
+          ) : (
+            <div className="stagger grid items-start gap-4 xl:grid-cols-2">
+              {visible.map((item, i) => (
+                <div key={item.id} style={{ ["--i" as string]: Math.min(i, 8) }}>
+                  <LibraryCard item={item} />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );

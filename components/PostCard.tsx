@@ -115,7 +115,7 @@ export default function PostCard({
 
   return (
     <article
-      className={`surface relative flex flex-col overflow-hidden p-4 transition-all duration-300 hover:border-white/15 sm:p-6 ${
+      className={`surface @container relative flex flex-col overflow-hidden p-4 transition-all duration-300 hover:border-white/15 sm:p-6 ${
         editing ? theme.editing : ""
       }`}
     >
@@ -126,11 +126,12 @@ export default function PostCard({
         <span className={`grid h-9 w-9 place-items-center rounded-xl border ${theme.iconTile}`}>
           <Icon name={theme.icon} className="h-[18px] w-[18px]" />
         </span>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h3 className={`text-sm font-bold uppercase tracking-[0.12em] ${theme.text}`}>{POST_LABELS[post.type]}</h3>
           <p className="text-xs text-slate-400">{theme.kicker}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
+        {/* Own row in narrow cards, right of the title in wide ones (container query, not viewport). */}
+        <div className="flex w-full flex-wrap items-center gap-1.5 @xl:w-auto">
           {published ? (
             <span className={`${chip} border-emerald-400/30 bg-emerald-400/10 text-emerald-200`}>
               <Icon name="check" className="h-3 w-3" />
@@ -149,7 +150,7 @@ export default function PostCard({
           )}
           {isTrending && (
             <span className={`${chip} border-amber-300/30 bg-amber-300/10 text-amber-200`}>
-              Sample trend data, not live
+              Sample topic, not live
             </span>
           )}
           {editing ? (
